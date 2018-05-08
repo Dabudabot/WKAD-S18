@@ -137,7 +137,9 @@ NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject)
 	PDEVICE_OBJECT currentDeviceObject = NULL;
 	PDEVICE_OBJECT myDeviceObject = NULL;
 
-	NTSTATUS status = ObReferenceObjectByName(&mouseClassName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)&targetDriverObject);
+	NTSTATUS status = ObReferenceObjectByName(&mouseClassName,
+		OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, 
+		KernelMode, NULL, (PVOID*)&targetDriverObject);
 	if (!NT_SUCCESS(status)) 
 	{
 		KdPrint(("ObReference  is failed \r\n"));
@@ -150,14 +152,16 @@ NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject)
 
 	while (currentDeviceObject != NULL) 
 	{
-		status = IoCreateDevice(driverObject, sizeof(device_extension), NULL, FILE_DEVICE_MOUSE, 0, FALSE, &myDeviceObject);
+		status = IoCreateDevice(driverObject, sizeof(device_extension), NULL, FILE_DEVICE_MOUSE, 
+			0, FALSE, &myDeviceObject);
 		if (!NT_SUCCESS(status)) 
 		{
 			return status;
 		}
 
 		RtlZeroMemory(myDeviceObject->DeviceExtension, sizeof(device_extension));
-		status = IoAttachDeviceToDeviceStackSafe(myDeviceObject, currentDeviceObject, &((pdevice_extension)myDeviceObject->DeviceExtension)->m_lowerDevice);
+		status = IoAttachDeviceToDeviceStackSafe(myDeviceObject, currentDeviceObject, 
+			&((pdevice_extension)myDeviceObject->DeviceExtension)->m_lowerDevice);
 
 		if (!NT_SUCCESS(status)) 
 		{
