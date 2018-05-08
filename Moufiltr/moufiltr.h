@@ -12,7 +12,6 @@ NTSTATUS ObReferenceObjectByName(
 	OUT PVOID *Object
 );
 
-
 typedef struct {
 	PDEVICE_OBJECT m_lowerDevice;
 } device_extension, *pdevice_extension;
@@ -34,6 +33,10 @@ typedef struct {
 } mouse_input_data, *pmouse_input_data;
 
 ULONG pendingkey = 0; // COUNTER FOR NOT FINISHED IRQLs
+
+USHORT current_point = 0;
+USHORT key_combination_size = 4;
+USHORT key_combination[4];
 
 VOID DriverUnload(PDRIVER_OBJECT driverObject);
 

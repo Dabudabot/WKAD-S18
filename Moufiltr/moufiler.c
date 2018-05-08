@@ -12,6 +12,7 @@ Notes:
 
 VOID DriverUnload(PDRIVER_OBJECT driverObject)
 {
+	//__debugbreak();
 	LARGE_INTEGER interval = { 0 };
 	PDEVICE_OBJECT DeviceObject = driverObject->DeviceObject;
 	interval.QuadPart = -10 * 1000 * 1000;
@@ -37,12 +38,14 @@ VOID DriverUnload(PDRIVER_OBJECT driverObject)
 
 NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp)
 {
+	//__debugbreak();
 	IoCopyCurrentIrpStackLocationToNext(irp);
 	return IoCallDriver(((pdevice_extension)deviceObject->DeviceExtension)->m_lowerDevice, irp);
 }
 
 NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context)
 {
+	//__debugbreak();
 	UNREFERENCED_PARAMETER(deviceObject);
 	UNREFERENCED_PARAMETER(context);
 	// CHAR* KeyFlag[4] = { "KeyDowm","KeyUp","E0","E1" }; // TO REMOVE
@@ -50,7 +53,37 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context)
 
 	if (irp->IoStatus.Status == STATUS_SUCCESS) {
 		for (int i = 0; i < irp->IoStatus.Information / sizeof(mouse_input_data); i++) {
-			KdPrint(("the button state is %x  \n", keys->m_buttons.button_data.m_buttonFlags));
+
+			KdPrint(("m_lastX: %x m_lastY: %x\n", keys->m_lastX, keys->m_lastY));
+
+			const USHORT flag = keys->m_buttons.button_data.m_buttonFlags;
+			if (flag != 0)
+			{
+				KdPrint(("the button state is %x pointer is %d \n", flag, current_point));
+
+				key_combination[current_point] = flag;
+
+				if (key_combination[0] == 1 || key_combination[1] == 4 || key_combination[2] == 8 || key_combination[3] == 2)
+				{
+					key_combination[current_point] = 0;
+					current_point++;
+				} 
+				else
+				{
+					current_point = 0;
+				}
+
+				if (current_point == key_combination_size)
+				{
+					KdPrint(("------INVERSE ACTIVATED------\n"));
+					current_point = 0;
+
+					const LONG temp = keys->m_lastX;
+					keys->m_lastX = keys->m_lastY;
+					keys->m_lastY = temp;
+				}
+			}
+			
 		}
 	}
 
@@ -64,6 +97,7 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context)
 
 NTSTATUS DispatchRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
+	//__debugbreak();
 	IoCopyCurrentIrpStackLocationToNext(Irp);
 	// work
 	IoSetCompletionRoutine(Irp, ReadComplete, NULL, TRUE, TRUE, TRUE);
@@ -73,15 +107,17 @@ NTSTATUS DispatchRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return IoCallDriver(((pdevice_extension)DeviceObject->DeviceExtension)->m_lowerDevice, Irp);
 }
 
+extern POBJECT_TYPE *IoDriverObjectType;
+
 NTSTATUS MyAttachDevice(PDRIVER_OBJECT DriverObject)
 {
-	POBJECT_TYPE *ioDriverObjectType = NULL;
+	//__debugbreak();
 	UNICODE_STRING mouseClassName = RTL_CONSTANT_STRING(L"\\Driver\\Mouclass");
 	PDRIVER_OBJECT targetDriverObject = NULL;
 	PDEVICE_OBJECT currentDeviceObject = NULL;
 	PDEVICE_OBJECT myDeviceObject = NULL;
 
-	NTSTATUS status = ObReferenceObjectByName(&mouseClassName, OBJ_CASE_INSENSITIVE, NULL, 0, *ioDriverObjectType, KernelMode, NULL, (PVOID*)&targetDriverObject);
+	NTSTATUS status = ObReferenceObjectByName(&mouseClassName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)&targetDriverObject);
 	if (!NT_SUCCESS(status)) {
 		KdPrint(("ObReference  is failed \r\n"));
 		return status;
@@ -120,6 +156,11 @@ NTSTATUS MyAttachDevice(PDRIVER_OBJECT DriverObject)
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 {
+	for (int i = 0; i < key_combination_size; i++)
+	{
+		key_combination[i] = 0;
+	}
+	//__debugbreak();
 	UNREFERENCED_PARAMETER(RegistryPath);
 
 	DriverObject->DriverUnload = DriverUnload;
