@@ -19,18 +19,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Inf Include="DLogger.inf">
+    <Inf Include="Moufiltr.inf">
       <Filter>Driver Files</Filter>
     </Inf>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DLogger.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="DLogger.h">
+    <ClInclude Include="moufiltr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="moufiler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
