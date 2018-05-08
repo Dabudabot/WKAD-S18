@@ -1,6 +1,29 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		moufiltr.h
+	Abstract:
+		This module contains the common private declarations for the mouse packet filter
+		Needed to hook mouse input and modify
+	Environment:
+		Kernel mode only
+--*/
+
 #pragma once
 #include <ntddk.h>
 
+/**
+ * \brief Native function to get Object and work with it by name
+ * \param ObjectName name of the object needed to return
+ * \param Attributes OBJ_CASE_INSENSITIVE
+ * \param AccessState NULL
+ * \param DesiredAccess 0
+ * \param ObjectType POBJECT_TYPE
+ * \param ACCESSMode KernelMode
+ * \param ParseContext NULL
+ * \param Object pointer to object
+ * \return status success in case of success
+ */
 NTSTATUS ObReferenceObjectByName(
 	IN PUNICODE_STRING ObjectName,
 	IN ULONG Attributes,
@@ -12,16 +35,26 @@ NTSTATUS ObReferenceObjectByName(
 	OUT PVOID *Object
 );
 
-typedef struct {
+/**
+* \brief device extension to passthrought
+*/
+typedef struct 
+{
 	PDEVICE_OBJECT m_lowerDevice;
 } device_extension, *pdevice_extension;
 
-typedef struct {
+/**
+* \brief mouse data stored here
+*/
+typedef struct 
+{
 	USHORT m_unitId;
 	USHORT m_flags;
-	union {
+	union 
+	{
 		ULONG  buttons;
-		struct {
+		struct 
+		{
 			USHORT m_buttonFlags;
 			USHORT m_buttonData;
 		} button_data;
@@ -32,20 +65,73 @@ typedef struct {
 	ULONG  m_extraInformation;
 } mouse_input_data, *pmouse_input_data;
 
-ULONG pendingkey = 0; // COUNTER FOR NOT FINISHED IRQLs
+/**
+ * \brief current pointer in keyCombination array
+ */
+USHORT currentPoint = 0;
+/**
+ * \brief size of keyCombination array
+ */
+USHORT keyCombinationSize = 4;
+/**
+ * \brief key combination array stores ordered key combination
+ */
+USHORT keyCombination[4] = {0,0,0,0};
+/**
+ * \brief is inversing activeted ot not
+ */
+BOOLEAN isInverse = FALSE;
+/**
+ * \brief counter for not finished irqls
+ */
+ULONG pendingkey = 0;
+/**
+ * \brief object needed for ObReferenceObjectByName
+ */
+extern POBJECT_TYPE *IoDriverObjectType;
 
-USHORT current_point = 0;
-USHORT key_combination_size = 4;
-USHORT key_combination[4];
-
+/**
+ * \brief driver unload logic here
+ * \param driverObject driver object itself
+ */
 VOID DriverUnload(PDRIVER_OBJECT driverObject);
 
+/**
+ * \brief default pass to any callbacks
+ * \param deviceObject driver object itself
+ * \param irp 
+ * \return result of function
+ */
 NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
 
+/**
+ * \brief 
+ * \param deviceObject 
+ * \param irp 
+ * \param context 
+ * \return result of function
+ */
 NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
 
-NTSTATUS DispatchRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+/**
+ * \brief spetial pass for IRP_MJ_READ
+ * \param deviceObject driver object itself
+ * \param irp 
+ * \return result of function
+ */
+NTSTATUS DispatchRead(PDEVICE_OBJECT deviceObject, PIRP irp);
 
-NTSTATUS MyAttachDevice(PDRIVER_OBJECT DriverObject);
+/**
+ * \brief attachement my device to the original driver to add our logic
+ * \param driverObject driver object itself
+ * \return result of function
+ */
+NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject);
 
-NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath);
+/**
+ * \brief driver initialization entry point
+ * \param driverObject driver object itself
+ * \param registryPath path
+ * \return result of function
+ */
+NTSTATUS DriverEntry(PDRIVER_OBJECT driverObject, PUNICODE_STRING registryPath);
