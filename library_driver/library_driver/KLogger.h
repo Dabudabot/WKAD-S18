@@ -28,7 +28,7 @@
 
 typedef struct KLogger
 {
-	PRINGBUFFER		m_pRingBuf;
+	pringbuffer		m_pRingBuf;
 	HANDLE			m_fileHandle;
 	PCHAR			m_pFlushingBuf;
 	HANDLE			m_flushingThreadHandle;

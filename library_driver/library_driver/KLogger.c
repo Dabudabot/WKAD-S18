@@ -1,3 +1,13 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		KLogger.c
+	Abstract:
+		This module contains implementations
+	Environment:
+		Kernel mode only
+--*/
+
 #include "KLogger.h"
 
 INT KLoggerInit(PUNICODE_STRING registryPath) 

@@ -1,146 +1,124 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		RingBuffer.c
+	Abstract:
+		This module contains implementations
+	Environment:
+		Kernel mode only
+--*/
+
 #include "RingBuffer.h"
 
-INT
-RBInit(
-	PRINGBUFFER* pRingBuf,
-	SIZE_T Size
-) {
-	INT Err = ERROR_SUCCESS;
+INT RBInit(pringbuffer* pRingBuf, SIZE_T size) 
+{
+	INT err = ERROR_SUCCESS;
 
-	if (!pRingBuf) {
-		Err = ERROR_BAD_ARGUMENTS;
+	if (!pRingBuf) 
+	{
+		err = ERROR_BAD_ARGUMENTS;
 		goto err_ret;
 	}
 
-	PRINGBUFFER RingBuf = (PRINGBUFFER)ExAllocatePool(NonPagedPool, sizeof(RINGBUFFER));
-	if (!RingBuf) {
-		Err = ERROR_NOT_ENOUGH_MEMORY;
+	pringbuffer ringBuf = (pringbuffer)ExAllocatePool(NonPagedPool, sizeof(ringbuffer));
+	if (!ringBuf) 
+	{
+		err = ERROR_NOT_ENOUGH_MEMORY;
 		goto err_ret;
 	}
 
-	*pRingBuf = RingBuf;
+	*pRingBuf = ringBuf;
 
-	RingBuf->Data = (PCHAR)ExAllocatePool(NonPagedPool, Size * sizeof(CHAR));
-	if (!RingBuf->Data) {
-		Err = ERROR_NOT_ENOUGH_MEMORY;
-		ExFreePool(RingBuf);
+	ringBuf->m_data = (PCHAR)ExAllocatePool(NonPagedPool, size * sizeof(CHAR));
+	if (!ringBuf->m_data) 
+	{
+		err = ERROR_NOT_ENOUGH_MEMORY;
+		ExFreePool(ringBuf);
 		goto err_ret;
 	}
 
-	RingBuf->Head = RingBuf->Data;
-	RingBuf->Tail = RingBuf->Data;
-	RingBuf->Capacity = Size;
+	ringBuf->m_head = ringBuf->m_data;
+	ringBuf->m_tail = ringBuf->m_data;
+	ringBuf->m_capacity = size;
 
-	KeInitializeSpinLock(&(RingBuf->SplockReadWrite));
+	KeInitializeSpinLock(&(ringBuf->m_splockReadWrite));
 
 err_ret:
-	return Err;
+	return err;
 }
 
-INT
-RBDeinit(
-	PRINGBUFFER pRingBuf
-) {
-	if (!pRingBuf) {
+INT RBDeinit(pringbuffer pRingBuf) 
+{
+	if (!pRingBuf) 
+	{
 		return ERROR_BAD_ARGUMENTS;
 	}
 
-	ExFreePool(pRingBuf->Data);
+	ExFreePool(pRingBuf->m_data);
 	ExFreePool(pRingBuf);
 
 	return ERROR_SUCCESS;
 }
 
-//don`t have it
-static VOID
-SpinlockExchange(
-	PCHAR* pSrc,
-	PCHAR* pDst, 
-	PKSPIN_LOCK Splock
-) {
-	KIRQL OldIrql;
-
-	KeRaiseIrql(HIGH_LEVEL, &OldIrql);
-	KeAcquireSpinLockAtDpcLevel(Splock);
-
-	*pDst = *pSrc;
-
-	KeReleaseSpinLockFromDpcLevel(Splock);
-	KeLowerIrql(OldIrql);
-} 
-
-SIZE_T
-RBSize(
-	PCHAR Head,
-	PCHAR Tail,
-	SIZE_T Capacity
-) {
-	if (Head >= Tail) {
-		return (SIZE_T)(Head - Tail);
-
-	} else {
-		return (SIZE_T)(Capacity - (Tail - Head));
-	}
+SIZE_T RBSize(PCHAR head, PCHAR tail, SIZE_T capacity) 
+{
+	if (head >= tail) 
+	{
+		return (SIZE_T)(head - tail);
+	} 
+	return (SIZE_T)(capacity - (tail - head));
 }
 
-static SIZE_T
-RBFreeSize(
-	PCHAR Head,
-	PCHAR Tail,
-	SIZE_T Capacity
-) {
-	return Capacity - RBSize(Head, Tail, Capacity);
+static SIZE_T RBFreeSize(PCHAR head, PCHAR tail, SIZE_T capacity) 
+{
+	return capacity - RBSize(head, tail, capacity);
 }
 
-static INT
-RingDataWrite(
-	PCHAR SrcBuf,
-	SIZE_T SrcBufSize,
-	PCHAR Data,
-	SIZE_T Capacity,
-	PCHAR Head,
-	PCHAR Tail,
-	PCHAR* NewHead
-) {
-	if (Head >= Tail) {
-		SIZE_T DistToFinish = Capacity - (Head - Data);
-		if (SrcBufSize > DistToFinish) {
-			RtlCopyMemory(Head, SrcBuf, DistToFinish);
-			RtlCopyMemory(Data, SrcBuf + DistToFinish, SrcBufSize - DistToFinish);
-			*NewHead = Data + SrcBufSize - DistToFinish;
+static INT RingDataWrite(PCHAR srcBuf, SIZE_T srcBufSize, PCHAR data,
+							SIZE_T capacity, PCHAR head, PCHAR tail, PCHAR* newHead) 
+{
+	if (head >= tail) 
+	{
+		SIZE_T distToFinish = capacity - (head - data);
+		if (srcBufSize > distToFinish) 
+		{
+			RtlCopyMemory(head, srcBuf, distToFinish);
+			RtlCopyMemory(data, srcBuf + distToFinish, srcBufSize - distToFinish);
+			*newHead = data + srcBufSize - distToFinish;
 
-		} else {
-			RtlCopyMemory(Head, SrcBuf, SrcBufSize);
-			*NewHead = Head + SrcBufSize;
+		} else 
+		{
+			RtlCopyMemory(head, srcBuf, srcBufSize);
+			*newHead = head + srcBufSize;
 		}
 
-	} else {
-		RtlCopyMemory(Head, SrcBuf, SrcBufSize);
-		*NewHead = Head + SrcBufSize;
+	} 
+	else 
+	{
+		RtlCopyMemory(head, srcBuf, srcBufSize);
+		*newHead = head + srcBufSize;
 	}
 
 	return ERROR_SUCCESS;
 }
 
-INT 
-RBWrite(
-	PRINGBUFFER pRingBuf, 
-	PCHAR pBuf, 
-	SIZE_T Size
-) {
-	if (!pRingBuf) {
+INT RBWrite(pringbuffer pRingBuf, PCHAR pBuf, SIZE_T size) 
+{
+	if (!pRingBuf) 
+	{
 		return ERROR_BAD_ARGUMENTS;
 	}
 
 	KIRQL OldIrql;
 	KeRaiseIrql(HIGH_LEVEL, &OldIrql);
-	KeAcquireSpinLockAtDpcLevel(&(pRingBuf->SplockReadWrite));
+	KeAcquireSpinLockAtDpcLevel(&(pRingBuf->m_splockReadWrite));
 
-	PCHAR Head = pRingBuf->Head;
-	PCHAR Tail = pRingBuf->Tail;
+	PCHAR Head = pRingBuf->m_head;
+	PCHAR Tail = pRingBuf->m_tail;
 
 	int Err;
-	if (Size > RBFreeSize(Head, Tail, pRingBuf->Capacity)) {
+	if (size > RBFreeSize(Head, Tail, pRingBuf->m_capacity)) 
+	{
 		Err = ERROR_INSUFFICIENT_BUFFER;
 		goto out;
 	}
@@ -148,83 +126,77 @@ RBWrite(
 	PCHAR NewHead;
 	Err = RingDataWrite(
 			pBuf, 
-			Size, 
-			pRingBuf->Data, 
-			pRingBuf->Capacity,
+			size, 
+			pRingBuf->m_data, 
+			pRingBuf->m_capacity,
 			Head,
 			Tail, 
 			&NewHead
 	);
-	if (Err != ERROR_SUCCESS) {
+	if (Err != ERROR_SUCCESS) 
+	{
 		goto out;
 	}
 
-	pRingBuf->Head = NewHead;
+	pRingBuf->m_head = NewHead;
 
 out:
-	KeReleaseSpinLockFromDpcLevel(&(pRingBuf->SplockReadWrite));
+	KeReleaseSpinLockFromDpcLevel(&(pRingBuf->m_splockReadWrite));
 	KeLowerIrql(OldIrql);
 
 	return Err;
 }
 
-static INT 
-RingDataRead(
-	PCHAR pDstBuf,
-	SIZE_T DstBufSize,
-	PCHAR Data,
-	SIZE_T Capacity,
-	PCHAR Head,
-	PCHAR Tail,
-	PSIZE_T pRetSize,
-	PCHAR* NewTail
-) {
-	SIZE_T Size = RBSize(Head, Tail, Capacity);
-	SIZE_T RetSize = (DstBufSize < Size) ? DstBufSize : Size;
-	*pRetSize = RetSize;
+static INT RingDataRead(PCHAR pDstBuf, SIZE_T dstBufSize, PCHAR data, SIZE_T capacity, 
+				PCHAR head, PCHAR tail, PSIZE_T pRetSize, PCHAR* newTail) 
+{
+	SIZE_T size = RBSize(head, tail, capacity);
+	SIZE_T retSize = (dstBufSize < size) ? dstBufSize : size;
+	*pRetSize = retSize;
 
-	if (Head >= Tail) {
-		RtlCopyMemory(pDstBuf, Tail, RetSize);
-		*NewTail = Tail + RetSize;
+	if (head >= tail) 
+	{
+		RtlCopyMemory(pDstBuf, tail, retSize);
+		*newTail = tail + retSize;
 
-	} else {
-		SIZE_T DistToFlush = Capacity - (Tail - Data);
-		if (RetSize <= DistToFlush) {
-			RtlCopyMemory(pDstBuf, Tail, RetSize);
-			*NewTail = Tail + RetSize;
+	} 
+	else
+	{
+		SIZE_T DistToFlush = capacity - (tail - data);
+		if (retSize <= DistToFlush) 
+		{
+			RtlCopyMemory(pDstBuf, tail, retSize);
+			*newTail = tail + retSize;
 
-		} else {
-			RtlCopyMemory(pDstBuf, Tail, DistToFlush);
-			RtlCopyMemory(pDstBuf + DistToFlush, Data, RetSize - DistToFlush);
-			*NewTail = Data + RetSize - DistToFlush;
+		} 
+		else 
+		{
+			RtlCopyMemory(pDstBuf, tail, DistToFlush);
+			RtlCopyMemory(pDstBuf + DistToFlush, data, retSize - DistToFlush);
+			*newTail = data + retSize - DistToFlush;
 		}
 	}
 
 	return ERROR_SUCCESS;
 }
 
-// there is only one reader - fluhsing thread -> no sync
-INT 
-RBRead(
-	PRINGBUFFER pRingBuf, 
-	PCHAR pBuf, 
-	PSIZE_T pSize
-) {
-	if (!pRingBuf || !pSize) {
+INT RBRead(pringbuffer pRingBuf, PCHAR pBuf, PSIZE_T pSize)
+{
+	if (!pRingBuf || !pSize) 
+	{
 		return ERROR_BAD_ARGUMENTS;
 	}
 
-	// TODO: res
-	PCHAR Head = pRingBuf->Head;
-	PCHAR Tail = pRingBuf->Tail;
+	PCHAR Head = pRingBuf->m_head;
+	PCHAR Tail = pRingBuf->m_tail;
 
 	SIZE_T RetSize;
 	PCHAR NewTail;
 	int Err = RingDataRead(
 				pBuf, 
 				*pSize, 
-				pRingBuf->Data, 
-				pRingBuf->Capacity, 
+				pRingBuf->m_data, 
+				pRingBuf->m_capacity, 
 				Head, 
 				Tail, 
 				&RetSize, 
@@ -235,16 +207,13 @@ RBRead(
 	}
 
 	*pSize = RetSize;
-	pRingBuf->Tail = NewTail;
+	pRingBuf->m_tail = NewTail;
 
 out:
 	return Err;
 }
 
-INT 
-RBLoadFactor(
-	PRINGBUFFER pRingBuf
-) {
-
-	return (INT)(100 * RBSize(pRingBuf->Head, pRingBuf->Tail, pRingBuf->Capacity)) / pRingBuf->Capacity;
+INT RBLoadFactor(pringbuffer pRingBuf) 
+{
+	return (INT)(100 * RBSize(pRingBuf->m_head, pRingBuf->m_tail, pRingBuf->m_capacity)) / pRingBuf->m_capacity;
 }
