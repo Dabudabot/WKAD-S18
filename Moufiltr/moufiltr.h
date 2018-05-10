@@ -94,7 +94,7 @@ extern POBJECT_TYPE *IoDriverObjectType;
  * \brief driver unload logic here
  * \param driverObject driver object itself
  */
-VOID DriverUnload(PDRIVER_OBJECT driverObject);
+VOID DriverUnload(_In_ PDRIVER_OBJECT driverObject);
 
 /**
  * \brief default pass to any callbacks
@@ -102,7 +102,7 @@ VOID DriverUnload(PDRIVER_OBJECT driverObject);
  * \param irp 
  * \return result of function
  */
-NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
+NTSTATUS DispatchPass(_In_ PDEVICE_OBJECT deviceObject, _Inout_ PIRP irp);
 
 /**
  * \brief 
@@ -111,7 +111,7 @@ NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
  * \param context 
  * \return result of function
  */
-NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
+NTSTATUS ReadComplete(_In_ PDEVICE_OBJECT deviceObject, _Inout_ PIRP irp, _In_ PVOID context);
 
 /**
  * \brief spetial pass for IRP_MJ_READ
@@ -119,14 +119,14 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
  * \param irp 
  * \return result of function
  */
-NTSTATUS DispatchRead(PDEVICE_OBJECT deviceObject, PIRP irp);
+NTSTATUS DispatchRead(_In_ PDEVICE_OBJECT deviceObject, _Inout_ PIRP irp);
 
 /**
  * \brief attachement my device to the original driver to add our logic
  * \param driverObject driver object itself
  * \return result of function
  */
-NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject);
+NTSTATUS MyAttachDevice(_In_ PDRIVER_OBJECT driverObject);
 
 /**
  * \brief driver initialization entry point
@@ -134,4 +134,4 @@ NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject);
  * \param registryPath path
  * \return result of function
  */
-NTSTATUS DriverEntry(PDRIVER_OBJECT driverObject, PUNICODE_STRING registryPath);
+NTSTATUS DriverEntry(_In_ PDRIVER_OBJECT driverObject, _In_ PUNICODE_STRING registryPath);
