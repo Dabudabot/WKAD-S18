@@ -1,36 +1,37 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		Source.c
+	Abstract:
+		This module contains implementations
+	Environment:
+		Kernel mode only
+--*/
+
 #include "Source.h"
 
-
-VOID DriverUnload(
-	_In_ struct _DRIVER_OBJECT *DriverObject
-)
+VOID DriverUnload(_In_ PDRIVER_OBJECT driverObject)
 {
-	UNREFERENCED_PARAMETER(DriverObject);
+	UNREFERENCED_PARAMETER(driverObject);
 	// __debugbreak();
 	DbgPrint("[library_driver]: 'DriverUnload()' is executed");
 	return;
 }
 
-NTSTATUS DriverEntry(
-	_In_ struct _DRIVER_OBJECT *DriverObject,
-	_In_ PUNICODE_STRING       RegistryPath
-)
+NTSTATUS DriverEntry(_In_ PDRIVER_OBJECT driverObject, _In_ PUNICODE_STRING registryPath)
 {
 	// __debugbreak();
 	DbgPrint("[library_driver]: 'DriverEntry()' is executed");
-	UNREFERENCED_PARAMETER(RegistryPath);
-	DriverObject->DriverUnload = DriverUnload;
+	UNREFERENCED_PARAMETER(registryPath);
+	driverObject->DriverUnload = DriverUnload;
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS DllInitialize(
-	_In_ PUNICODE_STRING RegistryPath
-)
+NTSTATUS DllInitialize(_In_ PUNICODE_STRING registryPath)
 {
-	//UNREFERENCED_PARAMETER(RegistryPath);
 	DbgPrint("[library_driver]: 'DllInitialize()' is started");
 
-	INT err = KLoggerInit(RegistryPath);
+	const INT err = KLoggerInit(registryPath);
 	if (err != ERROR_SUCCESS)
 	{
 		DbgPrint("[klogger_test]: DriverEntry(): 'KLoggerInit()' returned err = %d", err);

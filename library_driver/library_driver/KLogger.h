@@ -1,67 +1,108 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		KLogger.h
+	Abstract:
+		This module contains the declaration of Klogger logic
+		
+	Environment:
+		Kernel mode only
+--*/
+
 #pragma once
 
 #include <ntddk.h>
 #include <WinError.h>
 #include "RingBuffer.h"
 
+//-----defines-------
+
 #define LOG_FILE_NAME L"\\??\\C:\\Users\\James\\Dropbox\\1\\klogger.log"
 #define FLUSH_THRESHOLD 50u // in percents
-#define DEFAULT_RING_BUF_SIZE (100ull * 1024ull * 1024ull)
-#define FLUSH_BUF_SIZE DEFAULT_RING_BUF_SIZE
+#define FLUSH_BUF_SIZE (100ull * 1024ull * 1024ull)
 #define REGISTRY_BUF_SIZE_KEY L"BUF_SIZE"
-#define FLUSH_TIMEOUT 10000000ll
 #define START_TIMEOUT 50000000ll
+#define FLUSH_TIMEOUT 10000000ll
+
+//----structs--------
 
 typedef struct KLogger
 {
-	PRINGBUFFER pRingBuf;
+	PRINGBUFFER		m_pRingBuf;
+	HANDLE			m_fileHandle;
+	PCHAR			m_pFlushingBuf;
+	HANDLE			m_flushingThreadHandle;
+	PKTHREAD		m_pFlushingThread;
 
-	HANDLE FileHandle;
-	PCHAR pFlushingBuf;
+	KEVENT			m_flushEvent;
+	KEVENT			m_startEvent;
+	KEVENT			m_stopEvent;
 
-	HANDLE FlushingThreadHandle;
-	PKTHREAD pFlushingThread;
+	LONG volatile	m_isFlushDispatched;
+	PKDPC			m_pFlushDpc;
 
-	KEVENT FlushEvent;
-	KEVENT StartEvent;
-	KEVENT StopEvent;
+} klogger, *pklogger;
 
-	LONG volatile IsFlushDispatched;
-	PKDPC pFlushDpc;
+//----globals--------
 
-} KLOGGER, *PKLOGGER;
+pklogger pKLogger;
 
-PKLOGGER gKLogger;
-//typedef struct KLogger* PKLOGGER;
+//----methods-------
 
-INT KLoggerInit(PUNICODE_STRING RegistryPath);
-VOID KLoggerDeinit();
-INT KLoggerLog(PCSTR log_msg);
+/**
+ * \brief initilization of the KLogger
+ * ExAllocatePool of the structure above, calculating buffer size, SynchronizationEvent, ZwCreateFile, finally creating thread
+ * \param registryPath 
+ * \return 
+ */
+INT				KLoggerInit(_In_ PUNICODE_STRING registryPath);
 
-VOID SetWriteEvent(
-	IN PKDPC pthisDpcObject,
-	IN PVOID DeferredContext,
-	IN PVOID SystemArgument1,
-	IN PVOID SystemArgument2
-);
+/**
+ * \brief deinitialization, flushing and closing
+ */
+VOID			KLoggerDeinit(void);
 
-static INT
-WriteToFile(
-	HANDLE FileHandle,
-	PVOID Buf,
-	SIZE_T Length
-);
+/**
+ * \brief logging itself, asks ring buffer to write checks InterlockedCompareExchange
+ * \param logMsg message to write
+ * \return 
+ */
+INT				KLoggerLog(_In_ PCSTR logMsg);
 
-VOID
-FlushingThreadFunc(
-	IN PVOID _Unused
-);
+/**
+ * \brief write event for dpc, just flushes data to file
+ * \param pthisDpcObject unused
+ * \param deferredContext unused
+ * \param systemArgument1 unused
+ * \param systemArgument2 unused
+ */
+VOID			SetWriteEvent(_In_ PKDPC pthisDpcObject, _In_ PVOID deferredContext, 
+							_In_ PVOID systemArgument1, _In_ PVOID systemArgument2);
+/**
+ * \brief writes to file by calling ZwWriteFile
+ * \param fileHandle handler to the file
+ * \param buf buffer to write
+ * \param length size of the buffer
+ * \return result
+ */
+static INT		WriteToFile(_In_ HANDLE fileHandle, _In_ PVOID buf, _In_ SIZE_T length);
 
-SIZE_T GetRingBufSize(
-	PUNICODE_STRING RegistryPath
-);
+/**
+ * \brief flushing by event or by timeout
+ * \param unused 
+ */
+VOID			FlushingThreadFunc(_In_ PVOID unused);
 
-static SIZE_T
-StrLen(
-	PCSTR Str
-);
+/**
+ * \brief calculates buffer size
+ * \param registryPath 
+ * \return buffer size
+ */
+SIZE_T			GetRingBufSize(_In_ PUNICODE_STRING registryPath);
+
+/**
+ * \brief to calc lenght of the string
+ * \param str input string
+ * \return lenght of the string
+ */
+static SIZE_T	StrLen(_In_ PCSTR str);

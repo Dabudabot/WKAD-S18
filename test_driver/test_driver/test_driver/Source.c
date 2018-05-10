@@ -1,83 +1,25 @@
+/*++
+	Innopolis University 2018
+	Module Name:
+		Source.ñ
+	Abstract:
+		This module contains implementations
+	Environment:
+		Kernel mode only
+--*/
+
 #include "Source.h"
 
-VOID ThreadFunc(
-	IN PVOID _Unused
-) {
-	UNREFERENCED_PARAMETER(_Unused);
-
-	DbgPrint("1 Fast path: DPC flushing first part of messages\n");
-	KIRQL StartIrql = KeGetCurrentIrql();
-	for (KIRQL curIrql = StartIrql; curIrql <= HIGH_LEVEL; ++curIrql) 
-	{
-		KIRQL _OldIrql;
-		KeRaiseIrql(curIrql, &_OldIrql);
-		INT LogStat = KLoggerLog(Message[curIrql]);
-		DbgPrint("[klogtest 1]: curIRQL == %d, message: %s, status: %d", 
-			curIrql, 
-			Message[curIrql], 
-			LogStat
-		);
-		KeLowerIrql(StartIrql);
-	}
-
-	LARGE_INTEGER DueTime;
-	DueTime.QuadPart = -ONE_SECOND_TIMEOUT;	// 10^7 * 100us = 1; relative value
-	LARGE_INTEGER	Interval;
-	Interval.QuadPart = -2 * ONE_SECOND_TIMEOUT;
-
-	KeDelayExecutionThread(KernelMode, FALSE, &Interval);
-	DbgPrint("2 Slow path: TIMEOUT flushing all messages");
-
-	for (KIRQL curIrql = StartIrql; curIrql <= HIGH_LEVEL; ++curIrql) {
-		KIRQL _OldIrql;
-		KeRaiseIrql(curIrql, &_OldIrql);
-		INT LogStat = KLoggerLog(Message[curIrql]);
-		DbgPrint("[klogtest 1]: curIRQL == %d, message: %s, status: %d", 
-			curIrql, 
-			Message[curIrql], 
-			LogStat
-		);
-
-		KeLowerIrql(StartIrql);
-		KeDelayExecutionThread(KernelMode, FALSE, &Interval);
-	}
-
-	KeDelayExecutionThread(KernelMode, FALSE, &Interval);
-	DbgPrint("3 Combined path: DPC (1.9 msg) and TIMEOUT (1.1 msg) flushing messages");
-
-	for (KIRQL curIrql = StartIrql; curIrql <= HIGH_LEVEL; ++curIrql) {
-		KIRQL _OldIrql;
-		KeRaiseIrql(curIrql, &_OldIrql);
-		INT LogStat = KLoggerLog(Message[curIrql]);
-		DbgPrint("[klogtest 1]: curIRQL == %d, message: %s, status: %d", 
-			curIrql,
-			Message[curIrql], 
-			LogStat
-		);
-
-		KeLowerIrql(StartIrql);
-		if (curIrql % 3 == 0)
-			KeDelayExecutionThread(KernelMode, FALSE, &Interval);
-	}
-
-	PsTerminateSystemThread(ERROR_SUCCESS);
-}
-
-
-NTSTATUS 
-DriverEntry(
-	_In_ struct _DRIVER_OBJECT *DriverObject,
-	_In_ PUNICODE_STRING       RegistryPath
-) {
-	UNREFERENCED_PARAMETER(RegistryPath);
+NTSTATUS DriverEntry(_In_ PDRIVER_OBJECT driverObject, _In_ PUNICODE_STRING registryPath)
+{
+	UNREFERENCED_PARAMETER(registryPath);
 	// __debugbreak();
 	DbgPrint("[test_driver_1]: 'DriverEntry()' is executed");
-	DriverObject->DriverUnload = DriverUnload;
-
+	driverObject->DriverUnload = DriverUnload;
 
 	DbgPrint("[test_driver_1]: 'PsCreateSystemThread()' is started");
 	NTSTATUS status = PsCreateSystemThread(
-		&ThreadHandle,
+		&threadHandle,
 		THREAD_ALL_ACCESS,
 		NULL,
 		NULL,
@@ -86,18 +28,20 @@ DriverEntry(
 		NULL);
 	DbgPrint("[test_driver_1]: 'PsCreateSystemThread()' is finished");
 
-	if (NT_SUCCESS(status)) {
+	if (NT_SUCCESS(status))
+	{
 		DbgPrint("[test_driver_1]: 'ObReferenceObjectByHandle()' is started");
 		status = ObReferenceObjectByHandle(
-			ThreadHandle,
+			threadHandle,
 			FILE_ANY_ACCESS,
 			NULL,
 			KernelMode,
 			(PVOID *) &(pThread),
 			NULL);
 		DbgPrint("[test_driver_1]: 'ObReferenceObjectByHandle()' is finished, status %d", status);
-
-	} else {
+	}
+	else
+	{
 		DbgPrint("[test_driver_1]: error exit");
 		return ERROR_TOO_MANY_TCBS;
 	}
@@ -106,11 +50,10 @@ DriverEntry(
 	return STATUS_SUCCESS;
 }
 
-VOID 
-DriverUnload(
-	_In_ struct _DRIVER_OBJECT *DriverObject
-) {
-	UNREFERENCED_PARAMETER(DriverObject);
+VOID DriverUnload(_In_ PDRIVER_OBJECT driverObject)
+{
+	UNREFERENCED_PARAMETER(driverObject);
+
 	DbgPrint("[test_driver_1]: 'DriverUnload()' is started");
 
 	DbgPrint("[test_driver_1]: 'KeWaitForSingleObject()' is started");
@@ -125,8 +68,74 @@ DriverUnload(
 	DbgPrint("[test_driver_1]: 'KeWaitForSingleObject()' is finished");
 
 	ObDereferenceObject(pThread);
-	ZwClose(ThreadHandle);
+	ZwClose(threadHandle);
 
 	DbgPrint("[test_driver_1]: 'DriverUnload()' is finished");
 	return;
 }
+
+VOID ThreadFunc(_In_ PVOID unused)
+{
+	UNREFERENCED_PARAMETER(unused);
+
+	DbgPrint("---1 Fast path: DPC flushing first part of messages---");
+	const KIRQL startIrql = KeGetCurrentIrql();
+	for (KIRQL curIrql = startIrql; curIrql <= HIGH_LEVEL; ++curIrql) 
+	{
+		KIRQL oldIrql;
+		KeRaiseIrql(curIrql, &oldIrql);
+		const INT logStat = KLoggerLog(message[curIrql]);
+		DbgPrint("[klogtest 1]: curIRQL == %d, message: %s, status: %d", 
+			curIrql, 
+			message[curIrql], 
+			logStat
+		);
+		KeLowerIrql(startIrql);
+	}
+
+	LARGE_INTEGER interval;
+	interval.QuadPart = -2 * ONE_SECOND_TIMEOUT;
+
+	KeDelayExecutionThread(KernelMode, FALSE, &interval);
+	DbgPrint("---2 Slow path: TIMEOUT flushing all messages---");
+
+	for (KIRQL curIrql = startIrql; curIrql <= HIGH_LEVEL; ++curIrql) 
+	{
+		KIRQL oldIrql;
+		KeRaiseIrql(curIrql, &oldIrql);
+		const INT logStat = KLoggerLog(message[curIrql]);
+		DbgPrint("[klogtest 2]: curIRQL == %d, message: %s, status: %d", 
+			curIrql, 
+			message[curIrql], 
+			logStat
+		);
+
+		KeLowerIrql(startIrql);
+		KeDelayExecutionThread(KernelMode, FALSE, &interval);
+	}
+
+	KeDelayExecutionThread(KernelMode, FALSE, &interval);
+	DbgPrint("---Combined path: DPC (1.9 msg) and TIMEOUT (1.1 msg) flushing messages---");
+
+	for (KIRQL curIrql = startIrql; curIrql <= HIGH_LEVEL; ++curIrql) 
+	{
+		KIRQL oldIrql;
+		KeRaiseIrql(curIrql, &oldIrql);
+		const INT logStat = KLoggerLog(message[curIrql]);
+		DbgPrint("[klogtest 3]: curIRQL == %d, message: %s, status: %d", 
+			curIrql,
+			message[curIrql], 
+			logStat
+		);
+
+		KeLowerIrql(startIrql);
+		if (curIrql % 3 == 0)
+		{
+			KeDelayExecutionThread(KernelMode, FALSE, &interval);
+		}
+	}
+
+	PsTerminateSystemThread(ERROR_SUCCESS);
+	return;
+}
+
