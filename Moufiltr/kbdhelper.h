@@ -1,7 +1,7 @@
 /*++
 	Innopolis University 2018
 	Module Name:
-		moufiltr.h
+		kbdhelper.h
 	Abstract:
 		This module contains the common private declarations for the mouse packet filter
 		Needed to hook mouse input and modify
@@ -38,7 +38,7 @@ NTSTATUS ObReferenceObjectByName(
 /**
 * \brief device extension to passthrought
 */
-typedef struct 
+typedef struct
 {
 	PDEVICE_OBJECT m_lowerDevice;
 } device_extension, *pdevice_extension;
@@ -46,14 +46,14 @@ typedef struct
 /**
 * \brief mouse data stored here
 */
-typedef struct 
+typedef struct
 {
 	USHORT m_unitId;
 	USHORT m_flags;
-	union 
+	union
 	{
 		ULONG  buttons;
-		struct 
+		struct
 		{
 			USHORT m_buttonFlags;
 			USHORT m_buttonData;
@@ -99,16 +99,16 @@ VOID DriverUnload(PDRIVER_OBJECT driverObject);
 /**
  * \brief default pass to any callbacks
  * \param deviceObject driver object itself
- * \param irp 
+ * \param irp
  * \return result of function
  */
 NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
 
 /**
- * \brief 
- * \param deviceObject 
- * \param irp 
- * \param context 
+ * \brief
+ * \param deviceObject
+ * \param irp
+ * \param context
  * \return result of function
  */
 NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
@@ -116,7 +116,7 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
 /**
  * \brief spetial pass for IRP_MJ_READ
  * \param deviceObject driver object itself
- * \param irp 
+ * \param irp
  * \return result of function
  */
 NTSTATUS DispatchRead(PDEVICE_OBJECT deviceObject, PIRP irp);

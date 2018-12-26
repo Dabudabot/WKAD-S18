@@ -1,5 +1,5 @@
 ;
-; Moufiltr.inf
+; KbdHelper.inf
 ;
 
 [Version]
@@ -7,12 +7,12 @@ Signature="$WINDOWS NT$"
 Class=Sample ; TODO: edit Class
 ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171} ; TODO: edit ClassGuid
 Provider=%ManufacturerName%
-CatalogFile=Moufiltr.cat
+CatalogFile=KbdHelper.cat
 DriverVer= ; TODO: set DriverVer in stampinf property pages
 
 [DestinationDirs]
 DefaultDestDir = 12
-Moufiltr_Device_CoInstaller_CopyFiles = 11
+KbdHelper_Device_CoInstaller_CopyFiles = 11
 
 ; ================= Class section =====================
 
@@ -27,7 +27,7 @@ HKR,,Icon,,-5
 1 = %DiskName%,,,""
 
 [SourceDisksFiles]
-Moufiltr.sys  = 1,,
+KbdHelper.sys  = 1,,
 WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
 
 ;*****************************************
@@ -38,49 +38,49 @@ WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with
 %ManufacturerName%=Standard,NT$ARCH$
 
 [Standard.NT$ARCH$]
-%Moufiltr.DeviceDesc%=Moufiltr_Device, Root\Moufiltr ; TODO: edit hw-id
+%KbdHelper.DeviceDesc%=KbdHelper_Device, Root\KbdHelper ; TODO: edit hw-id
 
-[Moufiltr_Device.NT]
+[KbdHelper_Device.NT]
 CopyFiles=Drivers_Dir
 
 [Drivers_Dir]
-Moufiltr.sys
+KbdHelper.sys
 
 ;-------------- Service installation
-[Moufiltr_Device.NT.Services]
-AddService = Moufiltr,%SPSVCINST_ASSOCSERVICE%, Moufiltr_Service_Inst
+[KbdHelper_Device.NT.Services]
+AddService = KbdHelper,%SPSVCINST_ASSOCSERVICE%, KbdHelper_Service_Inst
 
-; -------------- Moufiltr driver install sections
-[Moufiltr_Service_Inst]
-DisplayName    = %Moufiltr.SVCDESC%
+; -------------- KbdHelper driver install sections
+[KbdHelper_Service_Inst]
+DisplayName    = %KbdHelper.SVCDESC%
 ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %12%\Moufiltr.sys
+ServiceBinary  = %12%\KbdHelper.sys
 
 ;
-;--- Moufiltr_Device Coinstaller installation ------
+;--- KbdHelper_Device Coinstaller installation ------
 ;
 
-[Moufiltr_Device.NT.CoInstallers]
-AddReg=Moufiltr_Device_CoInstaller_AddReg
-CopyFiles=Moufiltr_Device_CoInstaller_CopyFiles
+[KbdHelper_Device.NT.CoInstallers]
+AddReg=KbdHelper_Device_CoInstaller_AddReg
+CopyFiles=KbdHelper_Device_CoInstaller_CopyFiles
 
-[Moufiltr_Device_CoInstaller_AddReg]
+[KbdHelper_Device_CoInstaller_AddReg]
 HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
 
-[Moufiltr_Device_CoInstaller_CopyFiles]
+[KbdHelper_Device_CoInstaller_CopyFiles]
 WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
 
-[Moufiltr_Device.NT.Wdf]
-KmdfService =  Moufiltr, Moufiltr_wdfsect
-[Moufiltr_wdfsect]
+[KbdHelper_Device.NT.Wdf]
+KmdfService =  KbdHelper, KbdHelper_wdfsect
+[KbdHelper_wdfsect]
 KmdfLibraryVersion = $KMDFVERSION$
 
 [Strings]
 SPSVCINST_ASSOCSERVICE= 0x00000002
 ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacturer name
 ClassName="Samples" ; TODO: edit ClassName
-DiskName = "Moufiltr Installation Disk"
-Moufiltr.DeviceDesc = "Moufiltr Device"
-Moufiltr.SVCDESC = "Moufiltr Service"
+DiskName = "KbdHelper Installation Disk"
+KbdHelper.DeviceDesc = "KbdHelper Device"
+KbdHelper.SVCDESC = "KbdHelper Service"
