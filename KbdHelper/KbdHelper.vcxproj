@@ -154,9 +154,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="kbdhelper.h" />
+    <ClInclude Include="kbdlogic.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="kbdhelper.c" />
+    <ClCompile Include="kbdlogic.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

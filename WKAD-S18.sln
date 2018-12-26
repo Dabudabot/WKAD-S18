@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KbdHelper", "Moufiltr\Moufiltr.vcxproj", "{549EED0C-E0DC-4FBA-9F04-39FC4EB8BDD0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KbdHelper", "KbdHelper\KbdHelper.vcxproj", "{549EED0C-E0DC-4FBA-9F04-39FC4EB8BDD0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
