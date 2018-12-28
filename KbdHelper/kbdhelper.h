@@ -38,10 +38,10 @@ NTSTATUS ObReferenceObjectByName(
 /**
 * \brief device extension to passthrought
 */
-typedef struct
+typedef struct _DEVICE_EXTENSION
 {
-	PDEVICE_OBJECT m_lowerDevice;
-} device_extension, *pdevice_extension;
+	PDEVICE_OBJECT LowerDevice;
+} DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 /**
 * \brief mouse data stored here

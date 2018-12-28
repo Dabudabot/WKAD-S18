@@ -1,5 +1,15 @@
 /*++
-	Innopolis University 2018
+
+  Filter keyboard driver
+
+  0. Start in "start state"
+  1. Listen to input and wait for "init sequence" to enter "active state"
+  2. Listen to input and wait for "cmd sequence" to enter "record state"
+  3. Record sequence, step time and capture time goto "active state"
+  4. As soon as capture time + step time < current time append sequence,
+      update capture time
+  5. As soon as input "exit sequence", clean memory and goto "start state"
+
 	Module Name:
 		kbdhelper.c
 	Abstract:
@@ -42,13 +52,20 @@ DriverUnload(
 PDRIVER_OBJECT driverObject
 )
 {
+  //  TODO: change
+
+  PDEVICE_OBJECT deviceObject = driverObject->DeviceObject;
+
+  IoDetachDevice(((PDEVICE_EXTENSION) deviceObject->DeviceExtension)->LowerDevice);
+  IoDeleteDevice(deviceObject);
+
 	LARGE_INTEGER interval = { 0 };
-	PDEVICE_OBJECT deviceObject = driverObject->DeviceObject;
+
 	interval.QuadPart = -10 * 1000 * 1000;
 
 	while (deviceObject)
 	{
-		IoDetachDevice(((pdevice_extension)deviceObject->DeviceExtension)->m_lowerDevice);
+		IoDetachDevice(((PDEVICE_EXTENSION)deviceObject->DeviceExtension)->LowerDevice);
 		deviceObject = deviceObject->NextDevice;
 	}
 
@@ -72,7 +89,7 @@ PIRP irp
 )
 {
 	IoCopyCurrentIrpStackLocationToNext(irp);
-	return IoCallDriver(((pdevice_extension)deviceObject->DeviceExtension)->m_lowerDevice, irp);
+	return IoCallDriver(((PDEVICE_EXTENSION)deviceObject->DeviceExtension)->LowerDevice, irp);
 }
 
 NTSTATUS
@@ -86,7 +103,7 @@ PIRP irp
 
 	pendingkey++;
 
-	return IoCallDriver(((pdevice_extension)deviceObject->DeviceExtension)->m_lowerDevice, irp);
+  return IoCallDriver(((PDEVICE_EXTENSION) deviceObject->DeviceExtension)->LowerDevice, irp);
 }
 
 //TODO: logic goes here
@@ -156,47 +173,32 @@ MyAttachDevice(
 PDRIVER_OBJECT driverObject
 )
 {
-	UNICODE_STRING mouseClassName = RTL_CONSTANT_STRING(L"\\Driver\\Mouclass");
-	PDRIVER_OBJECT targetDriverObject = NULL;
-	PDEVICE_OBJECT currentDeviceObject = NULL;
+	UNICODE_STRING TargetDeviceName = RTL_CONSTANT_STRING(L"\\Device\\KeyboardClass0");
 	PDEVICE_OBJECT myDeviceObject = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
 
-	NTSTATUS status = ObReferenceObjectByName(&mouseClassName,
-		OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType,
-		KernelMode, NULL, (PVOID*)&targetDriverObject);
+  //  create device
+	status = IoCreateDevice(driverObject, sizeof(DEVICE_EXTENSION), NULL, FILE_DEVICE_MOUSE, 0, FALSE, &myDeviceObject);
 	if (!NT_SUCCESS(status))
 	{
-		KdPrint(("ObReference  is failed \r\n"));
 		return status;
 	}
 
-	ObDereferenceObject(targetDriverObject);
+  //  set flags
+  myDeviceObject->Flags |= DO_BUFFERED_IO;
+  myDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
-	currentDeviceObject = targetDriverObject->DeviceObject;
+  //  zero extension
+  RtlZeroMemory(myDeviceObject->DeviceExtension, sizeof(DEVICE_EXTENSION));
 
-	while (currentDeviceObject != NULL)
+  //  attach to stack
+  status = IoAttachDevice(myDeviceObject, &TargetDeviceName, &((PDEVICE_EXTENSION) myDeviceObject->DeviceExtension)->LowerDevice);
+
+	if (!NT_SUCCESS(status))
 	{
-		status = IoCreateDevice(driverObject, sizeof(device_extension), NULL, FILE_DEVICE_MOUSE,
-			0, FALSE, &myDeviceObject);
-		if (!NT_SUCCESS(status))
-		{
-			return status;
-		}
-
-		RtlZeroMemory(myDeviceObject->DeviceExtension, sizeof(device_extension));
-		status = IoAttachDeviceToDeviceStackSafe(myDeviceObject, currentDeviceObject,
-			&((pdevice_extension)myDeviceObject->DeviceExtension)->m_lowerDevice);
-
-		if (!NT_SUCCESS(status))
-		{
-			return status;
-		}
-
-		myDeviceObject->Flags |= DO_BUFFERED_IO;
-		myDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
-
-		currentDeviceObject = currentDeviceObject->NextDevice;
+    IoDeleteDevice(myDeviceObject);
+		return status;
 	}
 
-	return STATUS_SUCCESS;
+	return status;
 }
