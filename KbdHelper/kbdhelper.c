@@ -22,155 +22,75 @@
 
 NTSTATUS
 DriverEntry(
-PDRIVER_OBJECT driverObject,
-PUNICODE_STRING registryPath
+PDRIVER_OBJECT DriverObject,
+PUNICODE_STRING RegistryPath
 )
 {
-	UNREFERENCED_PARAMETER(registryPath);
+  UNREFERENCED_PARAMETER(RegistryPath);
 
-	driverObject->DriverUnload = DriverUnload;
+  DriverObject->DriverUnload = DriverUnload;
 
 	for (int i = 1; i <= IRP_MJ_MAXIMUM_FUNCTION; i++)
 	{
-		driverObject->MajorFunction[i] = DispatchPass;
+    DriverObject->MajorFunction[i] = DispatchPass;
 	}
 
-	driverObject->MajorFunction[IRP_MJ_READ] = DispatchRead;
+  DriverObject->MajorFunction[IRP_MJ_READ] = DispatchRead;
 
-	NTSTATUS status = MyAttachDevice(driverObject);
-
-  if (NT_SUCCESS(status))
-  {
-    DbgPrint("Attach\n");
-  }
+  NTSTATUS status = MyAttachDevice(DriverObject);
 
 	return status;
 }
 
 VOID
 DriverUnload(
-PDRIVER_OBJECT driverObject
+PDRIVER_OBJECT DriverObject
 )
 {
-  //  TODO: change
 
-  PDEVICE_OBJECT deviceObject = driverObject->DeviceObject;
+  PDEVICE_OBJECT deviceObject = DriverObject->DeviceObject;
 
   IoDetachDevice(((PDEVICE_EXTENSION) deviceObject->DeviceExtension)->LowerDevice);
   IoDeleteDevice(deviceObject);
 
-	LARGE_INTEGER interval = { 0 };
-
-	interval.QuadPart = -10 * 1000 * 1000;
-
-	while (deviceObject)
-	{
-		IoDetachDevice(((PDEVICE_EXTENSION)deviceObject->DeviceExtension)->LowerDevice);
-		deviceObject = deviceObject->NextDevice;
-	}
-
-	while (pendingkey)
-	{
-		KeDelayExecutionThread(KernelMode, FALSE, &interval);
-	}
-
-	deviceObject = driverObject->DeviceObject;
-	while (deviceObject)
-	{
-		IoDeleteDevice(deviceObject);
-		deviceObject = deviceObject->NextDevice;
-	}
 }
 
 NTSTATUS
 DispatchPass(
-PDEVICE_OBJECT deviceObject,
-PIRP irp
+PDEVICE_OBJECT DeviceObject,
+PIRP Irp
 )
 {
-	IoCopyCurrentIrpStackLocationToNext(irp);
-	return IoCallDriver(((PDEVICE_EXTENSION)deviceObject->DeviceExtension)->LowerDevice, irp);
+	IoCopyCurrentIrpStackLocationToNext(Irp);
+	return IoCallDriver(((PDEVICE_EXTENSION)DeviceObject->DeviceExtension)->LowerDevice, Irp);
 }
 
 NTSTATUS
 DispatchRead(
-PDEVICE_OBJECT deviceObject,
-PIRP irp
+PDEVICE_OBJECT DeviceObject,
+PIRP Irp
 )
 {
-	IoCopyCurrentIrpStackLocationToNext(irp);
-	IoSetCompletionRoutine(irp, ReadComplete, NULL, TRUE, TRUE, TRUE);
+  IoCopyCurrentIrpStackLocationToNext(Irp);
+  IoSetCompletionRoutine(Irp, ReadComplete, NULL, TRUE, TRUE, TRUE);
 
-	pendingkey++;
-
-  return IoCallDriver(((PDEVICE_EXTENSION) deviceObject->DeviceExtension)->LowerDevice, irp);
+  return IoCallDriver(((PDEVICE_EXTENSION) DeviceObject->DeviceExtension)->LowerDevice, Irp);
 }
 
-//TODO: logic goes here
 
 NTSTATUS
 ReadComplete(
-PDEVICE_OBJECT deviceObject,
-PIRP irp,
-PVOID context
+PDEVICE_OBJECT DeviceObject,
+PIRP Irp,
+PVOID Context
 )
 {
-	UNREFERENCED_PARAMETER(deviceObject);
-	UNREFERENCED_PARAMETER(context);
-	pmouse_input_data keys = (pmouse_input_data)irp->AssociatedIrp.SystemBuffer;
-
-	if (irp->IoStatus.Status == STATUS_SUCCESS)
-	{
-		for (int i = 0; i < irp->IoStatus.Information / sizeof(mouse_input_data); i++)
-		{
-			const USHORT flag = keys->m_buttons.button_data.m_buttonFlags;
-
-			if (flag != 0 && currentPoint != keyCombinationSize)
-			{
-				keyCombination[currentPoint] = flag;
-
-				if (keyCombination[0] == 1 ||
-					keyCombination[1] == 4 ||
-					keyCombination[2] == 8 ||
-					keyCombination[3] == 2)
-				{
-					keyCombination[currentPoint] = 0;
-					currentPoint++;
-
-					if (currentPoint == keyCombinationSize)
-					{
-						KdPrint(("Inversing Y-axis\n"));
-						isInverse = !isInverse;
-						currentPoint = 0;
-					}
-				}
-				else
-				{
-					currentPoint = 0;
-				}
-			}
-
-			if (isInverse)
-			{
-				keys->m_lastY = 65535 - keys->m_lastY;
-			}
-		}
-	}
-
-	if (irp->PendingReturned)
-	{
-		IoMarkIrpPending(irp);
-	}
-
-	pendingkey--;
-	return irp->IoStatus.Status;
+  //TODO: logic goes here
 }
-
-//TODO: change to kbd
 
 NTSTATUS
 MyAttachDevice(
-PDRIVER_OBJECT driverObject
+PDRIVER_OBJECT DriverObject
 )
 {
 	UNICODE_STRING TargetDeviceName = RTL_CONSTANT_STRING(L"\\Device\\KeyboardClass0");
@@ -178,7 +98,7 @@ PDRIVER_OBJECT driverObject
   NTSTATUS status = STATUS_SUCCESS;
 
   //  create device
-	status = IoCreateDevice(driverObject, sizeof(DEVICE_EXTENSION), NULL, FILE_DEVICE_MOUSE, 0, FALSE, &myDeviceObject);
+  status = IoCreateDevice(DriverObject, sizeof(DEVICE_EXTENSION), NULL, FILE_DEVICE_MOUSE, 0, FALSE, &myDeviceObject);
 	if (!NT_SUCCESS(status))
 	{
 		return status;

@@ -13,29 +13,6 @@
 #include <ntddk.h>
 
 /**
- * \brief Native function to get Object and work with it by name
- * \param ObjectName name of the object needed to return
- * \param Attributes OBJ_CASE_INSENSITIVE
- * \param AccessState NULL
- * \param DesiredAccess 0
- * \param ObjectType POBJECT_TYPE
- * \param ACCESSMode KernelMode
- * \param ParseContext NULL
- * \param Object pointer to object
- * \return status success in case of success
- */
-NTSTATUS ObReferenceObjectByName(
-	IN PUNICODE_STRING ObjectName,
-	IN ULONG Attributes,
-	IN PACCESS_STATE AccessState,
-	IN ACCESS_MASK DesiredAccess,
-	IN POBJECT_TYPE ObjectType,
-	IN KPROCESSOR_MODE ACCESSMode,
-	IN PVOID ParseContext,
-	OUT PVOID *Object
-);
-
-/**
 * \brief device extension to passthrought
 */
 typedef struct _DEVICE_EXTENSION
@@ -43,58 +20,20 @@ typedef struct _DEVICE_EXTENSION
 	PDEVICE_OBJECT LowerDevice;
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
-/**
-* \brief mouse data stored here
-*/
-typedef struct
+typedef struct _KEYBOARD_INPUT_DATA
 {
-	USHORT m_unitId;
-	USHORT m_flags;
-	union
-	{
-		ULONG  buttons;
-		struct
-		{
-			USHORT m_buttonFlags;
-			USHORT m_buttonData;
-		} button_data;
-	} m_buttons;
-	ULONG  m_rawButtons;
-	LONG   m_lastX;
-	LONG   m_lastY;
-	ULONG  m_extraInformation;
-} mouse_input_data, *pmouse_input_data;
-
-/**
- * \brief current pointer in keyCombination array
- */
-USHORT currentPoint = 0;
-/**
- * \brief size of keyCombination array
- */
-USHORT keyCombinationSize = 4;
-/**
- * \brief key combination array stores ordered key combination
- */
-USHORT keyCombination[4] = {0,0,0,0};
-/**
- * \brief is inversing activeted ot not
- */
-BOOLEAN isInverse = FALSE;
-/**
- * \brief counter for not finished irqls
- */
-ULONG pendingkey = 0;
-/**
- * \brief object needed for ObReferenceObjectByName
- */
-extern POBJECT_TYPE *IoDriverObjectType;
+  USHORT UnitId;
+  USHORT MakeCode;
+  USHORT Flags;
+  USHORT Reserved;
+  ULONG  ExtraInformation;
+} KEYBOARD_INPUT_DATA, *PKEYBOARD_INPUT_DATA;
 
 /**
  * \brief driver unload logic here
  * \param driverObject driver object itself
  */
-VOID DriverUnload(PDRIVER_OBJECT driverObject);
+VOID DriverUnload(PDRIVER_OBJECT DriverObject);
 
 /**
  * \brief default pass to any callbacks
@@ -102,7 +41,7 @@ VOID DriverUnload(PDRIVER_OBJECT driverObject);
  * \param irp
  * \return result of function
  */
-NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
+NTSTATUS DispatchPass(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 /**
  * \brief
@@ -111,7 +50,7 @@ NTSTATUS DispatchPass(PDEVICE_OBJECT deviceObject, PIRP irp);
  * \param context
  * \return result of function
  */
-NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
+NTSTATUS ReadComplete(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
 
 /**
  * \brief spetial pass for IRP_MJ_READ
@@ -119,14 +58,14 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT deviceObject, PIRP irp, PVOID context);
  * \param irp
  * \return result of function
  */
-NTSTATUS DispatchRead(PDEVICE_OBJECT deviceObject, PIRP irp);
+NTSTATUS DispatchRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 /**
  * \brief attachement my device to the original driver to add our logic
  * \param driverObject driver object itself
  * \return result of function
  */
-NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject);
+NTSTATUS MyAttachDevice(PDRIVER_OBJECT DriverObject);
 
 /**
  * \brief driver initialization entry point
@@ -134,4 +73,4 @@ NTSTATUS MyAttachDevice(PDRIVER_OBJECT driverObject);
  * \param registryPath path
  * \return result of function
  */
-NTSTATUS DriverEntry(PDRIVER_OBJECT driverObject, PUNICODE_STRING registryPath);
+NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath);
